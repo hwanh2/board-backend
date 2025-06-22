@@ -1,9 +1,16 @@
 # Python
 __pycache__/
+static
 *.py[cod]
 
-# Virtual environment
+# Environments
+.env
+.venv
+env/
 venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Django DB
 db.sqlite3
@@ -13,3 +20,4 @@ db.sqlite3
 
 # VSCode 설정 (필요 시)
 .vscode/
+
