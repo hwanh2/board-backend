@@ -15,6 +15,7 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
+        tags=['members'],
         operation_summary="로그인 또는 회원가입",
         request_body=LoginRequestSerializer,
         responses={
@@ -62,3 +63,4 @@ class LoginView(APIView):
             return response
         else:
             return Response(response_serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        

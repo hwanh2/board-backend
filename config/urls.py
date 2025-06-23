@@ -24,6 +24,7 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path("api/v1/", include([
         path("members/", include('member.urls')),  # 회원 관련 URL
+        path("posts/", include('post.urls')),  # 게시글 관련 URL
     ])),
 ]
 
