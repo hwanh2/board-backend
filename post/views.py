@@ -3,15 +3,30 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from .serializers import PostCreateSerializer, PostSerializer
 from .models import Post
-from django.conf import settings
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
-class PostCreateView(APIView):
+class PostView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        # GET 요청은 비로그인 사용자도 허용, POST는 로그인 필요
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    @swagger_auto_schema(
+        operation_summary="게시글 목록 조회",
+        responses={
+            200: openapi.Response(description="조회 성공", schema=PostSerializer(many=True))
+        }
+    )
+    def get(self, request):
+        posts = Post.objects.all().order_by('-created_at')
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="게시글 생성",
