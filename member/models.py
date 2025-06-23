@@ -1,8 +1,10 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-class Member(models.Model):
-    name = models.CharField(max_length=20)
-    password = models.CharField(max_length=100)
+class User(AbstractUser):
+    # 기본적으로 username, password, email 등 포함됨
+    # 필요한 경우 추가 필드를 여기에 정의
+    # 예: profile_image = models.URLField(null=True, blank=True)
 
     class Meta:
-        db_table = 'member'
+        db_table = 'user'  # 테이블 이름을 'user'로 지정
