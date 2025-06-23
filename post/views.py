@@ -71,3 +71,21 @@ class PostUpdateView(APIView):
             serializer.save()
             return Response(PostSerializer(post).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @swagger_auto_schema(
+        operation_summary="게시글 삭제",
+        responses={
+            204: "삭제 성공",
+            401: "인증되지 않았습니다.",
+            403: "작성자가 아닙니다.",
+            404: "게시글을 찾을 수 없습니다.",
+        }
+    )
+    def delete(self, request, post_id):
+        post = get_object_or_404(Post, pk=post_id)
+
+        if post.user_id != request.user:
+            return Response({"detail": "삭제 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        post.delete()
+        return Response({"detail": "삭제 완료"}, status=status.HTTP_204_NO_CONTENT)
