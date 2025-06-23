@@ -15,12 +15,13 @@ services:
   backend:
     container_name: Board-Backend
     build:
-      context: ../board-backend
+      context: .
     volumes:
       - static_volume:/Backend/static
     ports:
       - "8000:8000"
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
       DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_USER: ${DATABASE_USER}
@@ -29,7 +30,8 @@ services:
       - Board-Net
     restart: always
     command: >
-      sh -c "python manage.py collectstatic --noinput &&
+      sh -c "python wait_mysql.py &&
+            python manage.py collectstatic --noinput &&
             python manage.py makemigrations &&
             python manage.py migrate &&
             gunicorn --bind 0.0.0.0:8000 config.wsgi:application --timeout 300"
