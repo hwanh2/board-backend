@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import pymysql
+from datetime import timedelta
 from dotenv import load_dotenv
 
 pymysql.install_as_MySQLdb()
@@ -20,6 +21,9 @@ INSTALLED_APPS = [
     "corsheaders",
     'rest_framework',
     'drf_yasg',
+    "rest_framework_simplejwt",
+    'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
+    'member',
 ]
 
 MIDDLEWARE = [
@@ -59,6 +63,43 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # 필요 시 헤더 인증
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
+        # 'rest_framework.permissions.AllowAny',
+    ],
+    # 기타 설정들...
+}
+
+AUTH_USER_MODEL = 'member.User'
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # Access Token 유효 기간
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh Token 유효 기간
+    'ROTATE_REFRESH_TOKENS': False,  # Refresh Token 갱신 여부
+    'BLACKLIST_AFTER_ROTATION': True,  # Refresh Token 갱신 후 이전 토큰 블랙리스트 추가
+    'AUTH_HEADER_TYPES': ('Bearer',),  # 인증 헤더 타입
+}
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'JWT 토큰을 입력하세요. 예: "Bearer {토큰}"',
+        }
+    },
+    'USE_SESSION_AUTH': False,  # 세션 인증 비활성화 (JWT만 사용)
+}
+
+
+SOCIALACCOUNT_STORE_TOKENS = True
+
 
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"
