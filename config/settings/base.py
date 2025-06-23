@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
     'member',
+    'post',
 ]
 
 MIDDLEWARE = [
