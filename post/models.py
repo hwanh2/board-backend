@@ -14,5 +14,8 @@ class Post(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        db_table = 'post'
+    
     def __str__(self):
-        return f"{self.title} by {self.member.username}"
+        return f"{self.title} by {self.user_id.username}"
