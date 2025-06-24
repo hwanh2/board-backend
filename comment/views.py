@@ -13,6 +13,19 @@ class CommentView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     @swagger_auto_schema(
+        operation_summary="댓글 목록 조회",
+        responses={
+            200: openapi.Response(description="조회 성공", schema=CommentSerializer(many=True)),
+            404: "게시글을 찾을 수 없습니다."
+        }
+    )
+    def get(self, request, board_id):
+        post = get_object_or_404(Post, pk=board_id)
+        comments = post.comments.all().order_by('-created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
         operation_summary="댓글 생성",
         request_body=CommentCreateSerializer,
         responses={
