@@ -3,4 +3,5 @@ from .views import *
 
 urlpatterns = [
     path('<int:board_id>', CommentView.as_view(), name='comment_list_create'),
+    path('<int:board_id>/<int:comment_id>', CommentDetailView.as_view(), name='comment_datail'),
 ]
