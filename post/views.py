@@ -45,9 +45,22 @@ class PostView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class PostUpdateView(APIView):
+class PostDetailView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_summary="게시글 상세 조회",
+        responses={
+            200: openapi.Response(description="조회 성공", schema=PostSerializer),
+            401: "인증되지 않았습니다.",
+            404: "게시글을 찾을 수 없습니다."
+        }
+    )
+    def get(self, request, post_id):
+        post = get_object_or_404(Post, pk=post_id)
+        serializer = PostSerializer(post)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="게시글 수정",
@@ -71,7 +84,7 @@ class PostUpdateView(APIView):
             serializer.save()
             return Response(PostSerializer(post).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @swagger_auto_schema(
         operation_summary="게시글 삭제",
         responses={
