@@ -75,3 +75,22 @@ class CommentDetailView(APIView):
             serializer.save()
             return Response(CommentSerializer(comment).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @swagger_auto_schema(
+        operation_summary="댓글 삭제",
+        responses={
+            204: "삭제 성공",
+            401: "인증되지 않았습니다.",
+            403: "삭제 권한이 없습니다.",
+            404: "댓글을 찾을 수 없습니다.",
+        }
+    )
+    def delete(self, request, board_id, comment_id):
+        post = get_object_or_404(Post, pk=board_id)
+        comment = get_object_or_404(Comment, pk=comment_id, post_id=post)
+
+        if comment.user_id != request.user:
+            return Response({"detail": "삭제 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
