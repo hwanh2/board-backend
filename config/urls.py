@@ -25,6 +25,7 @@ urlpatterns = [
     path("api/v1/", include([
         path("members/", include('member.urls')),  # 회원 관련 URL
         path("posts/", include('post.urls')),  # 게시글 관련 URL
+        path("comments/", include('comment.urls')), # 댓글 관련 URL
     ])),
 ]
 
