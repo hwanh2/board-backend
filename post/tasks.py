@@ -1,8 +1,8 @@
+# tasks.py
 from celery import shared_task
-import time
 
 @shared_task
 def add_numbers(a, b):
-    print(f" {a} + {b} = {a + b}")
-    time.sleep(1)  # 비동기 테스트용
+    if a == 999:
+        raise Exception("의도된 실패입니다")
     return a + b
