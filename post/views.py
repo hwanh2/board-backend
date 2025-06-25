@@ -157,3 +157,26 @@ class TestSuccessView(APIView):
             "message": f"비동기 덧셈 작업이 큐에 들어갔습니다. (post_id={post_id})",
             "task_id": result.id
         })
+
+class TestFailView(APIView):
+
+    @swagger_auto_schema(
+        operation_description="강제로 비동기 작업을 큐에 넣어 테스트 실패를 유발합니다.",
+        responses={
+            200: openapi.Response(
+                description="작업이 큐에 들어갔습니다.",
+                examples={
+                    "application/json": {
+                        "message": "비동기 덧셈 작업이 큐에 들어갔습니다. (post_id=1)",
+                        "task_id": "b5d8bfc4-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    }
+                }
+            )
+        }
+    )
+    def get(self, request, post_id: int):
+        result = add_numbers.delay(post_id, 10)
+        return Response({
+            "message": f"비동기 덧셈 작업이 큐에 들어갔습니다. (post_id={post_id})",
+            "task_id": result.id
+        }, status=status.HTTP_200_OK)
