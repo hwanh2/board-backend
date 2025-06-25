@@ -5,10 +5,12 @@ from rest_framework.generics import get_object_or_404
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.permissions import AllowAny
 
 from .models import Post
 from comment.serializers import CommentCreateSerializer, CommentSerializer
 from .serializers import PostCreateSerializer, PostSerializer
+from .tasks import add_numbers
 
 
 class PostView(APIView):
@@ -120,3 +122,38 @@ class CommentView(APIView):
             comment = serializer.save()
             return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class TestSuccessView(APIView):
+    permission_classes = [AllowAny] 
+    
+    @swagger_auto_schema(
+        operation_summary="비동기 덧셈 요청",
+        operation_description="post_id와 10을 더하는 비동기 작업을 큐에 등록합니다.",
+        manual_parameters=[
+            openapi.Parameter(
+                name='post_id',
+                in_=openapi.IN_PATH,
+                type=openapi.TYPE_INTEGER,
+                description='더할 기준이 되는 post ID',
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="작업 등록 성공",
+                examples={
+                    "application/json": {
+                        "message": "비동기 덧셈 작업이 큐에 들어갔습니다. (post_id=3)",
+                        "task_id": "1e89f378-932b-472e-a332-1c16d4aa6a0b"
+                    }
+                }
+            )
+        }
+    )
+    def get(self, request, post_id):
+        result = add_numbers.delay(post_id, 10)
+        return Response({
+            "message": f"비동기 덧셈 작업이 큐에 들어갔습니다. (post_id={post_id})",
+            "task_id": result.id
+        })
