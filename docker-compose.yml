@@ -57,6 +57,14 @@ services:
     networks:
       - Board-Net
 
+  redis:
+    image: redis:7.0
+    container_name: DevSketch-Redis
+    ports:
+      - "6379:6379"
+    networks:
+      - Board-Net
+
   rabbitmq:
     image: "rabbitmq:3.13-management"
     container_name: rabbitmq

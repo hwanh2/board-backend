@@ -143,3 +143,5 @@ CELERY_FLOWER_PASSWORD = 'root'  # Flower 웹 인터페이스 비밀번호
 CELERY_RESULT_BACKEND = "django-db"
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
