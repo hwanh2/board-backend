@@ -18,3 +18,8 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'title', 'content', 'user_id', 'created_at','updated_at','comments']
+
+
+class PostCommentSummarySerializer(serializers.Serializer):
+    post_summary = serializers.CharField()
+    comment_summary = serializers.CharField()

@@ -7,10 +7,11 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.permissions import AllowAny
 
+from comment.models import Comment
 from .models import Post
 from comment.serializers import CommentCreateSerializer, CommentSerializer
-from .serializers import PostCreateSerializer, PostSerializer
-from .tasks import add_numbers
+from .serializers import PostCreateSerializer, PostSerializer, PostCommentSummarySerializer
+from .tasks import add_numbers, get_post_summary, get_comment_summary
 
 
 class PostView(APIView):
@@ -180,3 +181,41 @@ class TestFailView(APIView):
             "message": f"비동기 덧셈 작업이 큐에 들어갔습니다. (post_id={post_id})",
             "task_id": result.id
         }, status=status.HTTP_200_OK)
+
+class PostSummaryView(APIView):
+    permission_classes = []  # 인증 없이 접근 가능
+
+    @swagger_auto_schema(
+        operation_summary="게시글 및 댓글 요약",
+        operation_description="게시글 내용과 댓글을 AI가 요약한 결과를 반환합니다.",
+        responses={
+            200: openapi.Response(
+                description="요약 성공",
+                schema=PostCommentSummarySerializer
+            ),
+            404: "게시글이 존재하지 않습니다.",
+            500: "내부 서버 오류"
+        }
+    )
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response({"error": "게시글이 존재하지 않습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        comments = Comment.objects.filter(post_id=post_id).order_by("created_at")
+
+        try:
+            post_summary = get_post_summary(post)
+            comment_summary = get_comment_summary(comments)
+
+            response_data = {
+                "post_summary": post_summary,
+                "comment_summary": comment_summary
+            }
+
+            serializer = PostCommentSummarySerializer(response_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
