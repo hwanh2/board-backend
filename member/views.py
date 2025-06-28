@@ -58,8 +58,8 @@ class LoginView(APIView):
         
         if response_serializer.is_valid():
             response = Response(response_serializer.data, status=status.HTTP_200_OK)
-            response.set_cookie("access", access_token, httponly=True, samesite="None", secure=True)
-            response.set_cookie("refresh", refresh_token, httponly=True, samesite="None", secure=True)
+            response.set_cookie("access", access_token, httponly=True, samesite="None", secure=False)
+            response.set_cookie("refresh", refresh_token, httponly=True, samesite="None", secure=False)
             return response
         else:
             return Response(response_serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
