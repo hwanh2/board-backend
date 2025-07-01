@@ -9,10 +9,60 @@ from rest_framework.permissions import AllowAny
 from celery import chord
 
 from .models import Post
-from comment.serializers import CommentCreateSerializer, CommentSerializer
+from comment.models import Comment
+from comment.serializers import CommentCreateSerializer, CommentSerializer, CommentSummarySerializer
 from .serializers import PostCreateSerializer, PostSerializer, PostCommentSummarySerializer
 from .tasks import add_numbers, get_post_summary, get_comment_summary, collect_post_and_comment_summaries
+from django.http import StreamingHttpResponse
+import requests
+import openai
+from django.conf import settings
+import json
+import logging
 
+logger = logging.getLogger(__name__)
+
+def call_openai_api_stream(prompt):
+    api_url = "https://api.openai.com/v1/chat/completions"
+    api_key = settings.OPENAI_API_KEY
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4o",  # 정확한 모델 이름으로 변경
+        "messages": [
+            {"role": "system", "content": "당신은 일반 사용자들이 쉽게 이해할 수 있도록 게시글이나 댓글을 간결하게 요약해주는 요약 전문가입니다."},
+            {"role": "user", "content": prompt}
+        ],
+        "stream": True
+    }
+
+    try:
+        with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
+            if response.status_code != 200:
+                try:
+                    error_msg = response.json().get("error", "Unknown error occurred.")
+                except ValueError:
+                    error_msg = "Unknown error occurred."
+                logger.error(f"OpenAI API failed with status {response.status_code}: {error_msg}")
+                raise Exception(f"OpenAI API failed: {error_msg}")
+
+            for chunk in response.iter_content(chunk_size=None):
+                if chunk:
+                    decoded_chunk = chunk.decode("utf-8")
+                    logger.debug(f"Received chunk: {decoded_chunk}")
+                    yield decoded_chunk
+    except requests.RequestException as e:
+        error_message = f"RequestException: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message)
+    except Exception as e:
+        error_message = f"Unexpected error: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message)
 
 class PostView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -199,3 +249,81 @@ class PostSummaryView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PostSseSummaryView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            return StreamingHttpResponse(
+                iter([f"data: 게시글을 찾을 수 없습니다.\n\n"]),
+                content_type="text/event-stream"
+            )
+
+        comments = Comment.objects.filter(post_id=post_id).order_by("created_at")
+        serialized_comments = CommentSummarySerializer(comments, many=True).data
+
+        comment_text = "\n".join(
+            f"{idx + 1}. {comment['username']}: {comment['content']}"
+            for idx, comment in enumerate(serialized_comments)
+        )
+
+        prompt = f"""
+아래 게시글과 댓글들을 참고하여 전체적으로 간결하게 요약해 주세요.
+
+1) 게시글:
+제목: {post.title}
+내용: {post.content}
+
+2) 댓글:
+{comment_text}
+
+요약 시 게시글 요약과 댓글 요약을 구분하여 아래와 같은 형식으로 반환해 주세요.
+
+게시글 요약:
+[여기에 게시글 요약]
+
+댓글 요약:
+[여기에 댓글 요약]
+"""
+
+        def sse_stream():
+            sum_result = ""
+
+            for chunk in call_openai_api_stream(prompt):
+                chunk = chunk.strip()
+                logger.debug(f"Received chunk: {chunk}")
+
+                lines = chunk.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    if line.startswith("data: "):
+                        data = line[len("data: "):]
+                        logger.debug(f"Processed data: {data}")
+
+                        if data == "[DONE]":
+                            yield "event: done\ndata: [DONE]\n\n"
+                            return
+
+                        try:
+                            data_json = json.loads(data)
+                            content = data_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                            if content:
+                                sum_result += content
+                                content_sanitized = content.replace(" ", "&nbsp;").replace("\n", "<br>")
+                                yield f"data: {content_sanitized}\n\n"
+                        except json.JSONDecodeError as e:
+                            logger.error(f"JSONDecodeError: {e} for data: {data}")
+                            yield "data: JSONDecodeError\n\n"
+
+        response = StreamingHttpResponse(sse_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["Connection"] = "keep-alive"
+        response["Access-Control-Allow-Origin"] = "*"
+
+        return response
