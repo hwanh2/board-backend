@@ -9,4 +9,5 @@ urlpatterns = [
     path('<int:post_id>/test-fail', TestFailView.as_view(), name='test_fail'),
     path('<int:post_id>/summary', PostSummaryView.as_view(), name='post_summary'),
     path('<int:post_id>/SSEsummary', PostSseSummaryView.as_view(), name='post_summary'),
+    path('<int:post_id>/GSSEsummary', PostGSseSummaryView.as_view(), name='post_summary'),
 ]
