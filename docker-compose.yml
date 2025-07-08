@@ -135,6 +135,29 @@ services:
     networks:
       - Board-Net
 
+  prometheus:
+    image: prom/prometheus:v2.45.6
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - Board-Net
+
+  grafana:
+    image: grafana/grafana:9.5.20
+    container_name: grafana
+    volumes:
+      - ./grafana:/etc/grafana/provisioning
+      - ./grafana/data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - Board-Net
+
 volumes:
   db_data:
   static_volume:

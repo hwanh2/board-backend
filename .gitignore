@@ -21,3 +21,6 @@ db.sqlite3
 # VSCode 설정 (필요 시)
 .vscode/
 
+grafana/data/
+grafana/plugins/
+grafana.log
