@@ -7,6 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.permissions import AllowAny
 from celery import chord
+import os
 
 from .models import Post
 from comment.models import Comment
@@ -19,6 +20,9 @@ import openai
 from django.conf import settings
 import json
 import logging
+from rest_framework.parsers import MultiPartParser, FormParser
+import base64
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
@@ -327,3 +331,84 @@ class PostSseSummaryView(APIView):
         response["Access-Control-Allow-Origin"] = "*"
 
         return response
+    
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# 텍스트 chunk 분할 유틸
+def chunk_text(text, chunk_size=5):
+    for i in range(0, len(text), chunk_size):
+        yield text[i:i + chunk_size]
+
+class PostGSseSummaryView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            return StreamingHttpResponse(
+                iter([f"data: 게시글을 찾을 수 없습니다.\n\n"]),
+                content_type="text/event-stream"
+            )
+
+        comments = Comment.objects.filter(post_id=post_id).order_by("created_at")
+        serialized_comments = CommentSummarySerializer(comments, many=True).data
+
+        comment_text = "\n".join(
+            f"{idx + 1}. {comment['username']}: {comment['content']}"
+            for idx, comment in enumerate(serialized_comments)
+        )
+
+        prompt = f"""
+아래 게시글과 댓글들을 참고하여 전체적으로 간결하게 요약해 주세요.
+
+1) 게시글:
+제목: {post.title}
+내용: {post.content}
+
+2) 댓글:
+{comment_text}
+
+요약 시 게시글 요약과 댓글 요약을 구분하여 아래와 같은 형식으로 반환해 주세요.
+
+게시글 요약:
+[여기에 게시글 요약]
+
+댓글 요약:
+[여기에 댓글 요약]
+"""
+
+        def sse_stream():
+            try:
+                model = genai.GenerativeModel("gemini-1.5-pro")
+                response = model.generate_content(prompt, stream=True)
+
+                def split_text(text, size=5):
+                    for i in range(0, len(text), size):
+                        yield text[i:i+size]
+
+                for chunk in response:
+                    text = chunk.text.strip()
+                    if text:
+                        for small_chunk in split_text(text, size=5):  # 글자 수 조절로 부드러움 제어
+                            sanitized = (
+                                small_chunk
+                                .replace(" ", "&nbsp;")
+                                .replace("\n", "<br>")
+                            )
+                            yield f"data: {sanitized}\n\n"
+
+                yield "event: done\ndata: [DONE]\n\n"
+
+            except Exception as e:
+                yield f"data: Error: {str(e)}\n\n"
+
+        return StreamingHttpResponse(
+            sse_stream(),
+            content_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
